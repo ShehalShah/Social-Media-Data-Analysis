@@ -20,10 +20,9 @@ import sqlite3
 # Import the specialist agents and tools from our new agent.py file
 # from agent import router_chain, sql_agent_executor, semantic_search_tool, chart_selector_chain
 # from agent import agent_executor
-from agentclaude import create_agent
+from agent import create_agent
 
 load_dotenv()
-# --- Configuration ---
 SQL_DB_NAME = 'insights.db'
 SQL_ENGINE = create_engine(f'sqlite:///{SQL_DB_NAME}')
 
@@ -53,7 +52,6 @@ Columns: source_id, post_id, title, timestamp, username, views, shares, comments
 Table: reddit_posts (contains posts from Reddit)
 Columns: source_id, post_id, title, timestamp, username, ups, num_comments, link, platform, sentiment_positive, toxicity
 """
-# --- Pydantic Models for Data Validation & Documentation ---
 
 class TopRedditPost(BaseModel):
     title: Optional[str] = "No Title"
@@ -71,7 +69,6 @@ class OverallSummary(BaseModel):
     top_reddit_posts: List[TopRedditPost]
     top_youtube_posts: List[TopYoutubePost]
 
-# Pydantic models
 class ChatQuery(BaseModel):
     query: str
 
@@ -100,23 +97,20 @@ class TrendData(BaseModel):
     youtube_comments: int
     total_engagement: int
 
-# Union type for response
 ChatResponse = Union[TextResponse, ChartResponse]
 
 class TimeSeriesData(BaseModel):
     date: str; youtube_comments: int; reddit_comments: int
 
-# --- Initialize FastAPI App ---
 app = FastAPI(
     title="Data Insights API",
     description="An API to serve analytics from YouTube and Reddit data.",
     version="1.0.0"
 )
 
-# --- CORS Middleware ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows your React app to connect
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -140,8 +134,6 @@ async def startup_event():
         print(f"❌ Failed to initialize agent: {e}")
         raise e
 
-
-# --- API Endpoints ---
 @app.get("/")
 def home():
     return {"message": "Welcome to the Data Insights API!"}
@@ -153,13 +145,11 @@ def get_overall_summary():
     """
     try:
         with SQL_ENGINE.connect() as connection:
-            # Get total counts from each table
             yt_comments_count = pd.read_sql_query('SELECT COUNT(*) as count FROM youtube_comments', connection).iloc[0]['count']
             rd_comments_count = pd.read_sql_query('SELECT COUNT(*) as count FROM reddit_comments', connection).iloc[0]['count']
             yt_posts_count = pd.read_sql_query('SELECT COUNT(*) as count FROM youtube_posts', connection).iloc[0]['count']
             rd_posts_count = pd.read_sql_query('SELECT COUNT(*) as count FROM reddit_posts', connection).iloc[0]['count']
             
-            # Get top 5 Reddit posts by upvotes
             top_rd_posts_df = pd.read_sql_query('SELECT title, ups FROM reddit_posts ORDER BY ups DESC LIMIT 5', connection)
             
             # Get top 5 YouTube posts by views
@@ -174,7 +164,6 @@ def get_overall_summary():
                 "top_youtube_posts": top_yt_posts_df.to_dict(orient='records')
             }
     except Exception as e:
-        # For a real app, you would log this error
         return {"error": str(e)}
 
 # @app.post("/api/chat", response_model=ChatResponse)
@@ -228,10 +217,9 @@ async def handle_chat_query(query: ChatQuery) -> Union[TextResponse, ChartRespon
     try:
         print(f"Processing query: {query.query}")
         
-        # Process the query using our intelligent agent
         result = await agent.process_query(query.query)
         
-        # Return appropriate response format
+    
         if result["type"] == "chart":
             return ChartResponse(
                 type="chart",
@@ -307,11 +295,9 @@ def get_timeseries_data():
                 parse_dates=['date_of_comment']
             )
 
-            # Clean invalid dates
             yt_df.dropna(subset=['date_of_comment'], inplace=True)
             rd_df.dropna(subset=['date_of_comment'], inplace=True)
 
-            # Daily counts
             yt_counts = (
                 yt_df.set_index('date_of_comment').resample('D').size().rename('youtube_comments')
                 if not yt_df.empty else pd.Series([], name='youtube_comments', dtype='int64')
@@ -321,16 +307,14 @@ def get_timeseries_data():
                 if not rd_df.empty else pd.Series([], name='reddit_comments', dtype='int64')
             )
 
-            # Combine and reset index
             combined_df = (
                 pd.concat([yt_counts, rd_counts], axis=1)
                 .fillna(0)
                 .astype(int)
                 .reset_index()
-                .rename(columns={'date_of_comment': 'date'})  # force consistent column name
+                .rename(columns={'date_of_comment': 'date'})  
             )
 
-            # Format date
             combined_df['date'] = combined_df['date'].dt.strftime('%Y-%m-%d')
 
             return combined_df.to_dict(orient='records')
@@ -346,7 +330,6 @@ async def get_analytics_overview() -> AnalyticsResponse:
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Total counts
             cursor.execute("SELECT COUNT(*) FROM reddit_posts")
             reddit_posts = cursor.fetchone()[0]
             
@@ -392,7 +375,6 @@ async def get_analytics_overview() -> AnalyticsResponse:
             """)
             sentiment_data = cursor.fetchone()
             
-            # Top keywords (simplified - you can enhance this)
             cursor.execute("""
                 SELECT title, views, engagement FROM reddit_posts 
                 WHERE title IS NOT NULL AND views IS NOT NULL
@@ -449,7 +431,6 @@ async def get_activity_trends():
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Get daily activity for last 30 days
             cursor.execute("""
                 WITH daily_stats AS (
                     SELECT 
@@ -533,7 +514,6 @@ async def get_sentiment_analysis():
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Platform-wise sentiment
             cursor.execute("""
                 SELECT 
                     'Reddit Posts' as category,
@@ -576,7 +556,6 @@ async def get_sentiment_analysis():
             
             sentiment_data = cursor.fetchall()
             
-            # Time-based sentiment trends (last 14 days relative to latest timestamp)
             cursor.execute("""
                 WITH max_ts AS (
                     SELECT MAX(timestamp) as max_timestamp
@@ -631,6 +610,7 @@ async def get_sentiment_analysis():
             }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Sentiment analysis error: {str(e)}")
+
 @app.get("/api/engagement/leaderboard")
 async def get_engagement_leaderboard():
     """Get top performing content across platforms"""
@@ -670,7 +650,7 @@ async def get_engagement_leaderboard():
             """)
             top_youtube = cursor.fetchall()
             
-            # Top comments (most liked) - fix with subqueries
+            # Top comments 
             cursor.execute("""
                 SELECT * FROM (
                     SELECT 
@@ -828,7 +808,7 @@ async def get_user_analysis():
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Top contributors (fix with subqueries)
+            # Top contributors
             cursor.execute("""
                 SELECT * FROM (
                     SELECT 
@@ -861,7 +841,7 @@ async def get_user_analysis():
             
             top_users = cursor.fetchall()
             
-            # User engagement distribution (already fine)
+            # User engagement distribution
             cursor.execute("""
                 SELECT 
                     CASE 
@@ -927,7 +907,6 @@ async def get_popular_content():
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Most viewed content - fix with subqueries
             cursor.execute("""
                 SELECT * FROM (
                     SELECT 
@@ -987,7 +966,6 @@ async def get_trending_keywords():
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Fix: Wrap each SELECT in a subquery to allow ORDER BY + LIMIT
             cursor.execute("""
                 WITH latest AS (
                     SELECT MAX(timestamp) AS max_ts FROM reddit_posts
@@ -1021,9 +999,6 @@ async def get_trending_keywords():
 
 
             trending_posts = cursor.fetchall()
-            print(trending_posts)
-            
-            # Simple keyword extraction
             keyword_counts = defaultdict(int)
             for title, engagement, platform in trending_posts:
                 words = re.findall(r'\b\w{4,}\b', title.lower())
@@ -1051,7 +1026,6 @@ async def get_realtime_activity():
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Activity in last 24 hours
             cursor.execute("""
                 SELECT 
                     strftime('%H', timestamp) as hour,
