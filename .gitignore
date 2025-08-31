@@ -1,0 +1,34 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Python backend specifics
+/backend/venv/
+/backend/__pycache__/
+/backend/data/
+/backend/insights.db
+
+# Node.js frontend specifics
+/frontend/node_modules/
+/frontend/dist/
+/frontend/build/
+/frontend/.DS_Store
+
+# IDE and editor directories
+.vscode/
+.idea/
+
+# Operating System files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build artifacts
+/build
+/dist
