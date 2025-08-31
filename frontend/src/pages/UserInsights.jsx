@@ -11,11 +11,12 @@ import {
 
 const API_BASE_URL = 'http://127.0.0.1:8000';
 
-const UserCard = ({ user, rank, isTopContributor = false }) => {
-  const rankColors = {
-    1: 'from-yellow-400 to-yellow-500',
-    2: 'from-gray-400 to-gray-500',
-    3: 'from-amber-500 to-amber-600'
+// Redesigned UserCard for the light theme
+const UserCard = ({ user, rank }) => {
+  const rankUI = {
+    1: { icon: <Crown className="h-6 w-6 text-yellow-500" />, bgColor: 'bg-yellow-100' },
+    2: { icon: <Trophy className="h-5 w-5 text-slate-500" />, bgColor: 'bg-slate-200' },
+    3: { icon: <Award className="h-5 w-5 text-amber-600" />, bgColor: 'bg-amber-100' }
   };
 
   return (
@@ -23,39 +24,18 @@ const UserCard = ({ user, rank, isTopContributor = false }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: rank * 0.05 }}
-      whileHover={{ scale: 1.02, y: -2 }}
-      className={`p-5 rounded-xl shadow-md border transition-all duration-300 ${
-        rank <= 3 
-          ? 'bg-gradient-to-br from-white to-yellow-50 border-yellow-200 shadow-lg' 
-          : 'bg-white border-slate-200 hover:shadow-lg'
-      }`}
+      whileHover={{ scale: 1.02, y: -4, boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' }}
+      className="p-4 rounded-xl shadow-md border border-slate-200/80 bg-white transition-all duration-300"
     >
       <div className="flex items-center gap-4">
-        <div className="relative">
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold ${
-            rank <= 3 
-              ? `bg-gradient-to-r ${rankColors[rank]}` 
-              : 'bg-gradient-to-r from-slate-400 to-slate-500'
-          }`}>
-            {rank <= 3 ? (
-              rank === 1 ? <Crown className="h-6 w-6" /> : <Award className="h-5 w-5" />
-            ) : (
-              rank
-            )}
-          </div>
-          {rank <= 3 && (
-            <motion.div
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full"
-            />
-          )}
+        <div className={`relative w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${rankUI[rank]?.bgColor || 'bg-slate-100 text-slate-600'}`}>
+            {rank <= 3 ? rankUI[rank].icon : rank}
         </div>
         
-        <div className="flex-1">
-          <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-slate-800 flex items-center gap-2 truncate">
             @{user.username}
-            <span className={`px-2 py-1 text-xs rounded-full ${
+            <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${
               user.platform === 'reddit' 
                 ? 'bg-orange-100 text-orange-700' 
                 : 'bg-red-100 text-red-700'
@@ -64,19 +44,9 @@ const UserCard = ({ user, rank, isTopContributor = false }) => {
             </span>
           </h3>
           
-          <div className="grid grid-cols-3 gap-4 mt-3 text-sm">
-            <div>
-              <p className="text-slate-500">Posts</p>
-              <p className="font-semibold text-slate-800">{user.post_count}</p>
-            </div>
-            <div>
-              <p className="text-slate-500">Total Engagement</p>
-              <p className="font-semibold text-slate-800">{user.total_engagement?.toLocaleString()}</p>
-            </div>
-            <div>
-              <p className="text-slate-500">Avg Engagement</p>
-              <p className="font-semibold text-slate-800">{Math.round(user.avg_engagement || 0)}</p>
-            </div>
+          <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2 text-sm text-slate-500">
+              <span>Posts: <span className="font-semibold text-slate-700">{user.post_count}</span></span>
+              <span>Engagement: <span className="font-semibold text-slate-700">{user.total_engagement?.toLocaleString()}</span></span>
           </div>
         </div>
       </div>
@@ -84,41 +54,53 @@ const UserCard = ({ user, rank, isTopContributor = false }) => {
   );
 };
 
-const MetricWidget = ({ title, value, icon, color, description }) => (
+// Redesigned MetricCard for the light theme
+const MetricCard = ({ title, value, icon, iconBg, description }) => (
   <motion.div
     initial={{ opacity: 0, scale: 0.9 }}
     animate={{ opacity: 1, scale: 1 }}
-    whileHover={{ scale: 1.05 }}
-    className={`p-6 rounded-2xl text-white relative overflow-hidden ${color}`}
+    whileHover={{ scale: 1.02, y: -5, boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' }}
+    className="bg-white p-6 rounded-2xl shadow-md border border-slate-200/80"
   >
-    <div className="flex items-center justify-between mb-4">
-      <div className="p-3 bg-white/20 rounded-full">
+    <div className={`p-3 rounded-xl ${iconBg} w-max mb-4`}>
         {icon}
-      </div>
-      <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-        className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full"
-      />
     </div>
-    
-    <h3 className="text-lg font-medium mb-2">{title}</h3>
+    <h3 className="text-sm font-medium text-slate-500">{title}</h3>
     <motion.p 
-      initial={{ scale: 0 }}
-      animate={{ scale: 1 }}
-      transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
-      className="text-3xl font-bold mb-2"
+      initial={{ scale: 0.8, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ delay: 0.2, type: "spring", stiffness: 300 }}
+      className="text-3xl font-bold text-slate-800 my-1"
     >
       {value}
     </motion.p>
-    <p className="text-sm text-white/80">{description}</p>
+    <p className="text-sm text-slate-500">{description}</p>
   </motion.div>
+);
+
+// Generic AnimatedChart wrapper for consistency
+const AnimatedChart = ({ title, children, className = "" }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.6, delay: 0.2 }}
+      className={`bg-white rounded-2xl p-6 shadow-md border border-slate-200/80 ${className}`}
+    >
+      <h2 className="text-xl font-semibold text-slate-800 mb-6 flex items-center gap-2">
+        <motion.div
+          animate={{ scale: [1, 1.2, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="w-2.5 h-2.5 bg-indigo-500 rounded-full"
+        />
+        {title}
+      </h2>
+      {children}
+    </motion.div>
 );
 
 export default function UserInsights() {
   const [userData, setUserData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedMetric, setSelectedMetric] = useState('engagement');
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -133,269 +115,125 @@ export default function UserInsights() {
         setIsLoading(false);
       }
     };
-
     fetchUserData();
   }, []);
 
   if (isLoading) {
     return (
-      <div className="flex-1 p-4 lg:p-8 bg-gradient-to-br from-slate-50 via-cyan-50/30 to-blue-50/20">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="space-y-8"
-        >
-          <div className="text-center">
-            <motion.h1 
-              initial={{ y: -20 }}
-              animate={{ y: 0 }}
-              className="text-4xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent"
-            >
-              User Insights
-            </motion.h1>
-            <p className="text-slate-600 mt-2">Analyzing user behavior...</p>
-          </div>
-          
-          <div className="grid gap-6 md:grid-cols-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-32 bg-slate-200 rounded-2xl animate-pulse" />
-            ))}
-          </div>
-        </motion.div>
-      </div>
+        <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-slate-50">
+            <div className="max-w-7xl mx-auto">
+                <div className="h-10 w-2/3 bg-slate-200 rounded-lg animate-pulse mb-2" />
+                <div className="h-4 w-1/2 bg-slate-200 rounded-lg animate-pulse mb-8" />
+                <div className="grid gap-6 md:grid-cols-4">
+                    {[...Array(4)].map((_, i) => <div key={i} className="h-36 bg-slate-200 rounded-2xl animate-pulse" />)}
+                </div>
+            </div>
+        </div>
     );
   }
 
-  const COLORS = ['#06b6d4', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
+  const COLORS = ['#6366f1', '#a855f7', '#10b981', '#f59e0b', '#ef4444'];
+  
+  const userInsightCards = [
+    { title: "Activity Pattern", value: "Peak Hours", description: "Users are most active during 6-9 PM", icon: <Activity className="h-6 w-6 text-indigo-600" />, iconBg: "bg-indigo-100" },
+    { title: "Content Quality", value: "High Quality", description: "85% of top users maintain good engagement", icon: <Target className="h-6 w-6 text-emerald-600" />, iconBg: "bg-emerald-100" },
+    { title: "User Growth", value: "+15% Monthly", description: "New active contributors joining", icon: <User className="h-6 w-6 text-purple-600" />, iconBg: "bg-purple-100" },
+  ];
 
   return (
-    <div className="flex-1 p-4 lg:p-8 bg-gradient-to-br from-slate-50 via-cyan-50/30 to-blue-50/20 min-h-screen">
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="mb-8"
-      >
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent mb-2">
-          User Insights
-        </h1>
-        <p className="text-slate-600">Deep dive into user behavior and contribution patterns</p>
-      </motion.div>
-
-      {/* User Metrics */}
-      <div className="grid gap-6 md:grid-cols-4 mb-8">
-        <MetricWidget
-          title="Total Users"
-          value={userData?.top_contributors?.length || 0}
-          icon={<Users className="h-6 w-6" />}
-          color="bg-gradient-to-br from-cyan-500 to-cyan-600"
-          description="Active contributors"
-        />
-        <MetricWidget
-          title="Power Users"
-          value={userData?.top_contributors?.filter(u => u.total_engagement > 10000).length || 0}
-          icon={<Zap className="h-6 w-6" />}
-          color="bg-gradient-to-br from-purple-500 to-purple-600"
-          description="High engagement users"
-        />
-        <MetricWidget
-          title="Avg Posts per User"
-          value={Math.round((userData?.top_contributors?.reduce((sum, u) => sum + u.post_count, 0) || 0) / (userData?.top_contributors?.length || 1))}
-          icon={<MessageSquare className="h-6 w-6" />}
-          color="bg-gradient-to-br from-emerald-500 to-emerald-600"
-          description="Content creation rate"
-        />
-        <MetricWidget
-          title="Top Contributor"
-          value={userData?.top_contributors?.[0]?.total_engagement?.toLocaleString() || '0'}
-          icon={<Crown className="h-6 w-6" />}
-          color="bg-gradient-to-br from-amber-500 to-orange-500"
-          description="Highest engagement"
-        />
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid gap-8 lg:grid-cols-3">
-        {/* Top Contributors */}
-        <motion.div
-          initial={{ opacity: 0, x: -50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.7, delay: 0.3 }}
-          className="lg:col-span-2 bg-white rounded-2xl p-6 shadow-lg border border-slate-200/50"
-        >
-          <h2 className="text-xl font-semibold text-slate-800 mb-6 flex items-center gap-2">
-            <Trophy className="h-6 w-6 text-yellow-500" />
-            Top Contributors Leaderboard
-          </h2>
-          
-          <div className="space-y-4 max-h-[600px] overflow-y-auto">
-            {userData?.top_contributors?.slice(0, 15).map((user, index) => (
-              <UserCard 
-                key={`${user.platform}-${user.username}`}
-                user={user} 
-                rank={index + 1}
-                isTopContributor={index < 3}
-              />
-            ))}
-          </div>
+    <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-slate-50 min-h-screen">
+      <div className="max-w-7xl mx-auto">
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-slate-800 mb-1">User Insights</h1>
+          <p className="text-slate-600">Deep dive into user behavior and contribution patterns</p>
         </motion.div>
 
-        {/* User Engagement Distribution */}
-        <motion.div
-          initial={{ opacity: 0, x: 50 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.7, delay: 0.5 }}
-          className="bg-white rounded-2xl p-6 shadow-lg border border-slate-200/50"
-        >
-          <h2 className="text-xl font-semibold text-slate-800 mb-6 flex items-center gap-2">
-            <Target className="h-6 w-6 text-blue-500" />
-            Engagement Distribution
-          </h2>
-          
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={userData?.engagement_distribution}
-                cx="50%"
-                cy="50%"
-                outerRadius={80}
-                innerRadius={40}
-                paddingAngle={5}
-                dataKey="user_count"
-                nameKey="range"
-              >
-                {userData?.engagement_distribution?.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#ffffff', 
-                  border: '1px solid #e2e8f0', 
-                  borderRadius: '12px' 
-                }} 
-              />
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+          <MetricCard title="Total Users" value={userData?.top_contributors?.length || 0} icon={<Users className="h-6 w-6 text-cyan-600" />} iconBg="bg-cyan-100" description="Active contributors" />
+          <MetricCard title="Power Users" value={userData?.top_contributors?.filter(u => u.total_engagement > 10000).length || 0} icon={<Zap className="h-6 w-6 text-purple-600" />} iconBg="bg-purple-100" description="High engagement" />
+          <MetricCard title="Avg Posts per User" value={Math.round((userData?.top_contributors?.reduce((s, u) => s + u.post_count, 0) || 0) / (userData?.top_contributors?.length || 1))} icon={<MessageSquare className="h-6 w-6 text-emerald-600" />} iconBg="bg-emerald-100" description="Content creation rate" />
+          <MetricCard title="Top Contributor" value={userData?.top_contributors?.[0]?.total_engagement?.toLocaleString() || '0'} icon={<Crown className="h-6 w-6 text-amber-600" />} iconBg="bg-amber-100" description="Highest engagement" />
+        </div>
+
+        <div className="grid gap-8 lg:grid-cols-3">
+          <AnimatedChart title="Top Contributors" className="lg:col-span-2">
+            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2 -mr-2">
+              {userData?.top_contributors?.slice(0, 15).map((user, index) => (
+                <UserCard key={`${user.platform}-${user.username}`} user={user} rank={index + 1} />
+              ))}
+            </div>
+          </AnimatedChart>
+
+          <div className="flex flex-col gap-8">
+            <AnimatedChart title="Engagement Distribution">
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie data={userData?.engagement_distribution} cx="50%" cy="50%" outerRadius={100} innerRadius={60} paddingAngle={5} dataKey="user_count" nameKey="range">
+                    {userData?.engagement_distribution?.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px' }} />
+                  <Legend wrapperStyle={{fontSize: "14px"}} />
+                </PieChart>
+              </ResponsiveContainer>
+            </AnimatedChart>
+            
+            <AnimatedChart title="Platform Split">
+                <ResponsiveContainer width="100%" height={230}>
+                    <BarChart layout="vertical" data={[
+                        { name: 'Reddit', count: userData?.top_contributors?.filter(u => u.platform === 'reddit').length || 0 },
+                        { name: 'YouTube', count: userData?.top_contributors?.filter(u => u.platform === 'youtube').length || 0 }
+                    ]} margin={{ top: 0, right: 20, bottom: 0, left: 10 }}>
+                        <XAxis type="number" hide />
+                        <YAxis type="category" dataKey="name" stroke="#64748b" fontSize={14} width={70} />
+                        <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px' }} />
+                        <Bar dataKey="count" name="User Count" radius={[0, 4, 4, 0]}>
+                            <Cell fill="#ff5700" />
+                            <Cell fill="#ff0000" />
+                        </Bar>
+                    </BarChart>
+                </ResponsiveContainer>
+            </AnimatedChart>
+          </div>
+        </div>
+
+        <AnimatedChart title="Top 10 Users Performance" className="mt-8">
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart data={userData?.top_contributors?.slice(0, 10)} margin={{ top: 20, right: 20, bottom: 80, left: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="username" stroke="#64748b" angle={-45} textAnchor="end" height={100} interval={0} tickFormatter={(v) => `@${v.slice(0, 10)}${v.length > 10 ? '...' : ''}`} fontSize={12} />
+              <YAxis stroke="#64748b" fontSize={12} />
+              <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px' }} formatter={(v, n) => [v.toLocaleString(), n]} />
               <Legend />
-            </PieChart>
+              <Bar dataKey="total_engagement" fill="#6366f1" name="Total Engagement" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="post_count" fill="#a855f7" name="Post Count" radius={[4, 4, 0, 0]} />
+            </BarChart>
           </ResponsiveContainer>
-
-          {/* User Stats */}
-          <div className="mt-6 space-y-3">
-            {userData?.engagement_distribution?.map((range, index) => (
-              <motion.div
-                key={range.range}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="flex items-center justify-between p-3 bg-slate-50 rounded-lg"
-              >
-                <div className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full" 
-                    style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                  />
-                  <span className="text-sm font-medium text-slate-700">{range.range}</span>
-                </div>
-                <span className="text-sm text-slate-600">{range.user_count} users</span>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-      </div>
-
-      {/* User Performance Chart */}
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, delay: 0.7 }}
-        className="mt-8 bg-white rounded-2xl p-6 shadow-lg border border-slate-200/50"
-      >
-        <h2 className="text-xl font-semibold text-slate-800 mb-6">Top 10 Users Performance Comparison</h2>
-        <ResponsiveContainer width="100%" height={400}>
-          <BarChart
-            data={userData?.top_contributors?.slice(0, 10)}
-            margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-            <XAxis 
-              dataKey="username" 
-              stroke="#64748b"
-              angle={-45}
-              textAnchor="end"
-              height={80}
-              tickFormatter={(value) => `@${value.slice(0, 10)}${value.length > 10 ? '...' : ''}`}
-            />
-            <YAxis stroke="#64748b" />
-            <Tooltip 
-              contentStyle={{ 
-                backgroundColor: '#ffffff', 
-                border: '1px solid #e2e8f0', 
-                borderRadius: '12px' 
-              }}
-              formatter={(value, name) => [value.toLocaleString(), name]}
-            />
-            <Legend />
-            <Bar 
-              dataKey="total_engagement" 
-              fill="#06b6d4" 
-              name="Total Engagement"
-              radius={[4, 4, 0, 0]}
-            />
-            <Bar 
-              dataKey="post_count" 
-              fill="#8b5cf6" 
-              name="Post Count"
-              radius={[4, 4, 0, 0]}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </motion.div>
-
-      {/* User Insights Cards */}
-      <div className="mt-8 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.8 }}
-          className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-2xl shadow-lg"
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <Activity className="h-6 w-6" />
-            <h3 className="text-lg font-semibold">Activity Pattern</h3>
-          </div>
-          <p className="text-2xl font-bold mb-2">Peak Hours</p>
-          <p className="text-sm text-blue-100">Users are most active during 6-9 PM</p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.9 }}
-          className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-2xl shadow-lg"
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <Target className="h-6 w-6" />
-            <h3 className="text-lg font-semibold">Content Quality</h3>
-          </div>
-          <p className="text-2xl font-bold mb-2">High Quality</p>
-          <p className="text-sm text-green-100">85% of top users maintain good engagement</p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 1.0 }}
-          className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-2xl shadow-lg"
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <User className="h-6 w-6" />
-            <h3 className="text-lg font-semibold">User Growth</h3>
-          </div>
-          <p className="text-2xl font-bold mb-2">+15% Monthly</p>
-          <p className="text-sm text-purple-100">New active contributors joining</p>
-        </motion.div>
+        </AnimatedChart>
+        
+        <AnimatedChart title="Key User Insights" className="mt-8">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {userInsightCards.map((card, index) => (
+                    <motion.div
+                        key={card.title}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 + 0.5, duration: 0.5 }}
+                        className={`p-5 rounded-xl ${card.iconBg}`}
+                    >
+                        <div className="flex items-center gap-4 mb-3">
+                            <div className="p-2 bg-white rounded-lg shadow-sm">{card.icon}</div>
+                            <h3 className="font-semibold text-slate-800">{card.title}</h3>
+                        </div>
+                        <p className="text-xl font-bold text-slate-900 mb-1">{card.value}</p>
+                        <p className="text-sm text-slate-600">{card.description}</p>
+                    </motion.div>
+                ))}
+            </div>
+        </AnimatedChart>
       </div>
     </div>
   );
 }
+

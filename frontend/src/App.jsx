@@ -49,7 +49,7 @@ const AnimatedPage = ({ children }) => (
 
 function App() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-slate-50 text-slate-800">
       <Routes>
         <Route element={<Layout />}>
           <Route 
