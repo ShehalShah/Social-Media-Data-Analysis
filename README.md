@@ -73,7 +73,7 @@ cd backend
 uvicorn app:app --reload
 ```
 
-**3. Start the Frontend Server: **
+**3. Start the Frontend Server:**
 
 In a second terminal:
 ```
