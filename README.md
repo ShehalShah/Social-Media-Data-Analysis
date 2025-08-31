@@ -64,7 +64,8 @@ cd backend
 python process_data_pinecone.py
 ```
 
-**2. Start the Backend Server: **
+**2. Start the Backend Server:**
+
 In one terminal:
 
 ```
@@ -73,6 +74,7 @@ uvicorn app:app --reload
 ```
 
 **3. Start the Frontend Server: **
+
 In a second terminal:
 ```
 cd frontend
