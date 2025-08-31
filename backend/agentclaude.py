@@ -263,35 +263,61 @@ class DataAnalysisAgent:
         """Perform semantic search"""
         return self.semantic_search_tool._run(query)
     
-    def _generate_sql_query(self, user_query: str) -> str:
-        """Generate SQL query using LLM"""
+    def _generate_sql_query(self, user_query: str) -> Tuple[str, Optional[str]]:
+        """Generate SQL query (and chart type if requested) using LLM"""
         schema = self._get_sql_schema()
         
         prompt = f"""
         Based on this database schema:
         {schema}
         
-        Generate a SINGLE, VALID SQL SELECT query for this user question: "{user_query}"
+        Generate output for this user question: "{user_query}"
         
         Rules:
-        1. Return ONLY the SQL query, no explanations
-        2. Use proper SQL syntax
-        3. Include LIMIT clause if appropriate
-        4. Don't use unsupported functions
-        
-        SQL Query:
+        1. Always generate a SINGLE, VALID SQL SELECT query. The database is **SQLite**, not PostgreSQL or MySQL. Always generate SQLite-compatible SQL.
+        2. If the user explicitly asks for a chart/graph/visualization/plot, also specify the chart type.
+        3. When generating chart queries, always include BOTH:
+        - The metric to be plotted (e.g., likes, count, score).
+        - A human-readable identifier (e.g., comment_text, username, title, url) for labeling the x-axis or legend.
+        4. Allowed chart types: bar, line, pie, histogram, scatter, area. If no chart requested, use null.
+        5. Output STRICTLY as JSON with exactly these two keys:
+        {{
+            "sql": "<SQL query>",
+            "chart_type": "<one of: bar, line, pie, histogram, scatter, area, null>"
+        }}
+        6. Do not include explanations, markdown, or text outside JSON.
+        7. Use valid SQLite-compatible SQL only (e.g., DATE(), strftime()).
         """
-        
+
         response = self.llm.invoke([HumanMessage(content=prompt)])
-        sql_query = response.content.strip()
-        
-        # Clean the SQL query
+        raw = response.content.strip()
+
+        # Attempt to parse JSON strictly
+        sql_query, chart_type = "", None
+        try:
+            parsed = json.loads(raw)
+            sql_query = parsed.get("sql", "").strip()
+            chart_type = parsed.get("chart_type", None)
+        except Exception:
+            # fallback: extract JSON-like block if LLM added noise
+            match = re.search(r"\{[\s\S]*\}", raw)
+            if match:
+                try:
+                    parsed = json.loads(match.group(0))
+                    sql_query = parsed.get("sql", "").strip()
+                    chart_type = parsed.get("chart_type", None)
+                except Exception:
+                    sql_query, chart_type = raw, None
+            else:
+                sql_query, chart_type = raw, None
+
+        # Clean SQL query (remove ```sql fences, extra formatting)
         sql_query = re.sub(r'```sql\n?', '', sql_query)
         sql_query = re.sub(r'```\n?', '', sql_query)
         sql_query = sql_query.strip()
         
-        return sql_query
-    
+        return sql_query, chart_type
+   
     async def process_query(self, user_query: str) -> Dict[str, Any]:
         """Main method to process user queries"""
         try:
@@ -319,9 +345,9 @@ class DataAnalysisAgent:
     async def _handle_chart_query(self, query: str) -> Dict[str, Any]:
         """Handle queries that require charts"""
         try:
-            # Generate and execute SQL query
-            sql_query = self._generate_sql_query(query)
-            print(f"Generated SQL for chart: {sql_query}")
+            # Generate SQL + chart type from same LLM call
+            sql_query, chart_type = self._generate_sql_query(query)
+            print(f"Generated SQL for chart: {sql_query}, chart_type: {chart_type}")
             
             sql_result = self._execute_sql_query(sql_query)
             
@@ -331,11 +357,22 @@ class DataAnalysisAgent:
                     "content": f"I couldn't generate the chart due to a database error: {sql_result}"
                 }
             
-            # Generate chart data
-            chart_data = self._generate_chart_data(sql_result, query)
-            
-            if chart_data:
-                # Generate brief summary using LLM
+            # Generate chart data (if chart_type is valid)
+            if chart_type:
+                data = self._extract_sql_data(sql_result)
+                if not data:
+                    return {
+                        "type": "text",
+                        "content": f"I found data but couldn't create a chart:\n{sql_result}"
+                    }
+
+                chart_data = {
+                    "chartType": chart_type,
+                    "data": data,
+                    "title": f"Visualization for: {query}"
+                }
+
+                # Generate brief summary using same results
                 summary_prompt = f"""
                 Based on this SQL query result for the question "{query}":
                 {sql_result}
@@ -350,23 +387,24 @@ class DataAnalysisAgent:
                     "content": chart_data,
                     "summary": summary_response.content.strip()
                 }
-            else:
-                return {
-                    "type": "text",
-                    "content": f"I found this data but couldn't create a chart:\n{sql_result}"
-                }
+            
+            # If no chart requested, fallback to text answer
+            return {
+                "type": "text",
+                "content": f"Here are the results:\n{sql_result}"
+            }
                 
         except Exception as e:
             return {
                 "type": "text",
                 "content": f"Error generating chart: {str(e)}"
             }
-    
+
     async def _handle_sql_query(self, query: str) -> Dict[str, Any]:
         """Handle specific data queries using SQL"""
         try:
             # Generate and execute SQL query
-            sql_query = self._generate_sql_query(query)
+            sql_query, chart_type = self._generate_sql_query(query)
             print(f"Generated SQL: {sql_query}")
             
             sql_result = self._execute_sql_query(sql_query)

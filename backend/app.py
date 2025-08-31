@@ -396,7 +396,7 @@ async def get_analytics_overview() -> AnalyticsResponse:
             cursor.execute("""
                 SELECT title, views, engagement FROM reddit_posts 
                 WHERE title IS NOT NULL AND views IS NOT NULL
-                ORDER BY CAST(views AS INTEGER) DESC LIMIT 10
+                ORDER BY CAST(engagement AS INTEGER) DESC LIMIT 10
             """)
             top_reddit = cursor.fetchall()
             
@@ -432,11 +432,11 @@ async def get_analytics_overview() -> AnalyticsResponse:
                 "neutral": round((sentiment_data[2] or 0) * 100, 1)
             },
             top_keywords=[
-                {"keyword": f"Reddit: {title[:50]}...", "count": views}
-                for title, views, _ in top_reddit[:5]
+                {"keyword": f"Reddit: {title[:50]}...", "count": engagement}
+                for title, views, engagement in top_reddit[:5]
             ] + [
                 {"keyword": f"YouTube: {title[:50]}...", "count": views}
-                for title, views, _ in top_youtube[:5]
+                for title, views, engagement in top_youtube[:5]
             ]
         )
     except Exception as e:
@@ -576,9 +576,17 @@ async def get_sentiment_analysis():
             
             sentiment_data = cursor.fetchall()
             
-            # Time-based sentiment trends
+            # Time-based sentiment trends (last 14 days relative to latest timestamp)
             cursor.execute("""
-                WITH daily_sentiment AS (
+                WITH max_ts AS (
+                    SELECT MAX(timestamp) as max_timestamp
+                    FROM (
+                        SELECT timestamp FROM reddit_posts
+                        UNION ALL
+                        SELECT timestamp FROM youtube_posts
+                    )
+                ),
+                daily_sentiment AS (
                     SELECT 
                         DATE(timestamp) as date,
                         AVG(sentiment_positive) as positive,
@@ -589,7 +597,9 @@ async def get_sentiment_analysis():
                         UNION ALL
                         SELECT timestamp, sentiment_positive, sentiment_negative, sentiment_neutral FROM youtube_posts
                     )
-                    WHERE timestamp >= date('now', '-14 days')
+                    WHERE timestamp >= (
+                        SELECT date(max_timestamp, '-14 days') FROM max_ts
+                    )
                     GROUP BY DATE(timestamp)
                     ORDER BY date
                 )
@@ -602,9 +612,9 @@ async def get_sentiment_analysis():
                 "platform_sentiment": [
                     {
                         "category": row[0],
-                        "positive": round(row[1], 2),
-                        "negative": round(row[2], 2),
-                        "neutral": round(row[3], 2),
+                        "positive": round(row[1] or 0, 2),
+                        "negative": round(row[2] or 0, 2),
+                        "neutral": round(row[3] or 0, 2),
                         "total_items": row[4]
                     }
                     for row in sentiment_data
@@ -621,7 +631,6 @@ async def get_sentiment_analysis():
             }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Sentiment analysis error: {str(e)}")
-
 @app.get("/api/engagement/leaderboard")
 async def get_engagement_leaderboard():
     """Get top performing content across platforms"""
@@ -661,29 +670,31 @@ async def get_engagement_leaderboard():
             """)
             top_youtube = cursor.fetchall()
             
-            # Top comments (most liked)
+            # Top comments (most liked) - fix with subqueries
             cursor.execute("""
-                SELECT 
-                    text,
-                    username,
-                    CAST(likes AS INTEGER) as likes,
-                    'reddit' as platform
-                FROM reddit_comments 
-                WHERE likes IS NOT NULL AND text IS NOT NULL
-                ORDER BY CAST(likes AS INTEGER) DESC 
-                LIMIT 5
-                
+                SELECT * FROM (
+                    SELECT 
+                        text,
+                        username,
+                        CAST(likes AS INTEGER) as likes,
+                        'reddit' as platform
+                    FROM reddit_comments 
+                    WHERE likes IS NOT NULL AND text IS NOT NULL
+                    ORDER BY CAST(likes AS INTEGER) DESC 
+                    LIMIT 5
+                )
                 UNION ALL
-                
-                SELECT 
-                    text,
-                    username,
-                    CAST(likes AS INTEGER) as likes,
-                    'youtube' as platform
-                FROM youtube_comments 
-                WHERE likes IS NOT NULL AND text IS NOT NULL
-                ORDER BY CAST(likes AS INTEGER) DESC 
-                LIMIT 5
+                SELECT * FROM (
+                    SELECT 
+                        text,
+                        username,
+                        CAST(likes AS INTEGER) as likes,
+                        'youtube' as platform
+                    FROM youtube_comments 
+                    WHERE likes IS NOT NULL AND text IS NOT NULL
+                    ORDER BY CAST(likes AS INTEGER) DESC 
+                    LIMIT 5
+                )
             """)
             top_comments = cursor.fetchall()
             
@@ -817,38 +828,40 @@ async def get_user_analysis():
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Top contributors
+            # Top contributors (fix with subqueries)
             cursor.execute("""
-                SELECT 
-                    username,
-                    COUNT(*) as post_count,
-                    SUM(CAST(engagement AS INTEGER)) as total_engagement,
-                    AVG(CAST(engagement AS INTEGER)) as avg_engagement,
-                    'reddit' as platform
-                FROM reddit_posts 
-                WHERE username IS NOT NULL AND engagement IS NOT NULL
-                GROUP BY username
-                ORDER BY total_engagement DESC
-                LIMIT 10
-                
+                SELECT * FROM (
+                    SELECT 
+                        username,
+                        COUNT(*) as post_count,
+                        SUM(CAST(engagement AS INTEGER)) as total_engagement,
+                        AVG(CAST(engagement AS INTEGER)) as avg_engagement,
+                        'reddit' as platform
+                    FROM reddit_posts 
+                    WHERE username IS NOT NULL AND engagement IS NOT NULL
+                    GROUP BY username
+                    ORDER BY total_engagement DESC
+                    LIMIT 10
+                )
                 UNION ALL
-                
-                SELECT 
-                    username,
-                    COUNT(*) as post_count,
-                    SUM(CAST(engagement AS INTEGER)) as total_engagement,
-                    AVG(CAST(engagement AS INTEGER)) as avg_engagement,
-                    'youtube' as platform
-                FROM youtube_posts 
-                WHERE username IS NOT NULL AND engagement IS NOT NULL
-                GROUP BY username
-                ORDER BY total_engagement DESC
-                LIMIT 10
+                SELECT * FROM (
+                    SELECT 
+                        username,
+                        COUNT(*) as post_count,
+                        SUM(CAST(engagement AS INTEGER)) as total_engagement,
+                        AVG(CAST(engagement AS INTEGER)) as avg_engagement,
+                        'youtube' as platform
+                    FROM youtube_posts 
+                    WHERE username IS NOT NULL AND engagement IS NOT NULL
+                    GROUP BY username
+                    ORDER BY total_engagement DESC
+                    LIMIT 10
+                )
             """)
             
             top_users = cursor.fetchall()
             
-            # User engagement distribution
+            # User engagement distribution (already fine)
             cursor.execute("""
                 SELECT 
                     CASE 
@@ -914,37 +927,39 @@ async def get_popular_content():
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Most viewed content
+            # Most viewed content - fix with subqueries
             cursor.execute("""
-                SELECT 
-                    title,
-                    username,
-                    CAST(views AS INTEGER) as views,
-                    CAST(engagement AS INTEGER) as engagement,
-                    CAST(comments AS INTEGER) as comment_count,
-                    sentiment_positive,
-                    timestamp,
-                    'reddit' as platform
-                FROM reddit_posts 
-                WHERE views IS NOT NULL AND title IS NOT NULL
-                ORDER BY CAST(views AS INTEGER) DESC 
-                LIMIT 15
-                
+                SELECT * FROM (
+                    SELECT 
+                        title,
+                        username,
+                        CAST(views AS INTEGER) as views,
+                        CAST(engagement AS INTEGER) as engagement,
+                        CAST(comments AS INTEGER) as comment_count,
+                        sentiment_positive,
+                        timestamp,
+                        'reddit' as platform
+                    FROM reddit_posts 
+                    WHERE views IS NOT NULL AND title IS NOT NULL
+                    ORDER BY CAST(views AS INTEGER) DESC 
+                    LIMIT 15
+                )
                 UNION ALL
-                
-                SELECT 
-                    title,
-                    username,
-                    CAST(views AS INTEGER) as views,
-                    CAST(engagement AS INTEGER) as engagement,
-                    CAST(comments AS INTEGER) as comment_count,
-                    sentiment_positive,
-                    timestamp,
-                    'youtube' as platform
-                FROM youtube_posts 
-                WHERE views IS NOT NULL AND title IS NOT NULL
-                ORDER BY CAST(views AS INTEGER) DESC 
-                LIMIT 15
+                SELECT * FROM (
+                    SELECT 
+                        title,
+                        username,
+                        CAST(views AS INTEGER) as views,
+                        CAST(engagement AS INTEGER) as engagement,
+                        CAST(comments AS INTEGER) as comment_count,
+                        sentiment_positive,
+                        timestamp,
+                        'youtube' as platform
+                    FROM youtube_posts 
+                    WHERE views IS NOT NULL AND title IS NOT NULL
+                    ORDER BY CAST(views AS INTEGER) DESC 
+                    LIMIT 15
+                )
             """)
             
             popular_content = cursor.fetchall()
@@ -972,28 +987,43 @@ async def get_trending_keywords():
         with get_db_connection() as conn:
             cursor = conn.cursor()
             
-            # Get recent high-engagement posts for keyword extraction
+            # Fix: Wrap each SELECT in a subquery to allow ORDER BY + LIMIT
             cursor.execute("""
-                SELECT title, CAST(engagement AS INTEGER) as engagement, 'reddit' as platform
-                FROM reddit_posts 
-                WHERE title IS NOT NULL AND engagement IS NOT NULL 
-                    AND timestamp >= date('now', '-7 days')
-                ORDER BY CAST(engagement AS INTEGER) DESC 
-                LIMIT 50
-                
+                WITH latest AS (
+                    SELECT MAX(timestamp) AS max_ts FROM reddit_posts
+                    UNION ALL
+                    SELECT MAX(timestamp) AS max_ts FROM youtube_posts
+                ),
+                global_latest AS (
+                    SELECT MAX(max_ts) AS latest_timestamp FROM latest
+                )
+                SELECT * FROM (
+                    SELECT title, CAST(engagement AS INTEGER) as engagement, 'reddit' as platform
+                    FROM reddit_posts, global_latest
+                    WHERE title IS NOT NULL 
+                    AND engagement IS NOT NULL 
+                    AND timestamp >= datetime(global_latest.latest_timestamp, '-7 days')
+                    ORDER BY CAST(engagement AS INTEGER) DESC 
+                    LIMIT 50
+                )
                 UNION ALL
-                
-                SELECT title, CAST(engagement AS INTEGER) as engagement, 'youtube' as platform
-                FROM youtube_posts 
-                WHERE title IS NOT NULL AND engagement IS NOT NULL 
-                    AND timestamp >= date('now', '-7 days')
-                ORDER BY CAST(engagement AS INTEGER) DESC 
-                LIMIT 50
+                SELECT * FROM (
+                    SELECT title, CAST(engagement AS INTEGER) as engagement, 'youtube' as platform
+                    FROM youtube_posts, global_latest
+                    WHERE title IS NOT NULL 
+                    AND engagement IS NOT NULL 
+                    AND timestamp >= datetime(global_latest.latest_timestamp, '-7 days')
+                    ORDER BY CAST(engagement AS INTEGER) DESC 
+                    LIMIT 50
+                )
             """)
-            
+
+
+
             trending_posts = cursor.fetchall()
+            print(trending_posts)
             
-            # Simple keyword extraction (you can enhance this with NLP)
+            # Simple keyword extraction
             keyword_counts = defaultdict(int)
             for title, engagement, platform in trending_posts:
                 words = re.findall(r'\b\w{4,}\b', title.lower())
