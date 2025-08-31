@@ -39,7 +39,8 @@ This project is a full-stack web application designed to analyze and extract ins
 cd backend
 python -m venv venv
 source venv/bin/activate  # On Windows: .\venv\Scripts\activate
-pip install -r requirements.txt ```
+pip install -r requirements.txt
+```
 
 **3. Create .env file**
 In the backend folder, create a .env file and add your API keys:
