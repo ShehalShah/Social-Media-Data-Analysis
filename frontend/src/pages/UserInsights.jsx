@@ -11,7 +11,6 @@ import {
 
 const API_BASE_URL = 'http://127.0.0.1:8000';
 
-// Redesigned UserCard for the light theme
 const UserCard = ({ user, rank }) => {
   const rankUI = {
     1: { icon: <Crown className="h-6 w-6 text-yellow-500" />, bgColor: 'bg-yellow-100' },
@@ -54,7 +53,6 @@ const UserCard = ({ user, rank }) => {
   );
 };
 
-// Redesigned MetricCard for the light theme
 const MetricCard = ({ title, value, icon, iconBg, description }) => (
   <motion.div
     initial={{ opacity: 0, scale: 0.9 }}
@@ -78,7 +76,6 @@ const MetricCard = ({ title, value, icon, iconBg, description }) => (
   </motion.div>
 );
 
-// Generic AnimatedChart wrapper for consistency
 const AnimatedChart = ({ title, children, className = "" }) => (
     <motion.div
       initial={{ opacity: 0, y: 30 }}

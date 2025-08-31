@@ -14,7 +14,6 @@ import {
     Sparkles
 } from 'lucide-react';
 
-// Reusable SidebarLink component with a clean, light theme design
 const SidebarLink = ({ to, icon, children, onClick }) => (
     <NavLink
         to={to}
@@ -34,7 +33,6 @@ const SidebarLink = ({ to, icon, children, onClick }) => (
     </NavLink>
 );
 
-// Navigation items definition
 const sidebarItems = [
     { to: "/", icon: <LayoutDashboard className="h-5 w-5" />, label: "Dashboard" },
     { to: "/analyzer", icon: <MessageSquareText className="h-5 w-5" />, label: "AI Analyzer" },
@@ -45,7 +43,6 @@ const sidebarItems = [
     { to: "/realtime", icon: <Activity className="h-5 w-5" />, label: "Real-time Feed" }
 ];
 
-// Main Layout component with the new light theme design
 export default function Layout() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const location = useLocation();
@@ -54,7 +51,7 @@ export default function Layout() {
 
     return (
         <div className="min-h-screen w-full bg-slate-50 lg:grid lg:grid-cols-[280px_1fr]">
-            {/* Desktop Sidebar */}
+            
             <motion.div
                 initial={{ x: -100, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
@@ -86,7 +83,6 @@ export default function Layout() {
                         </div>
                     </motion.div>
 
-                    {/* Navigation Links */}
                     <div className="flex-1 overflow-y-auto py-6">
                         <nav className="grid items-start px-4 text-sm gap-2">
                             {sidebarItems.map((item, index) => (
@@ -104,7 +100,6 @@ export default function Layout() {
                         </nav>
                     </div>
 
-                    {/* Sidebar Footer */}
                     <motion.div
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
@@ -119,9 +114,7 @@ export default function Layout() {
                 </div>
             </motion.div>
 
-            {/* Mobile View Wrapper */}
             <div className="flex flex-col lg:hidden">
-                {/* Mobile Header */}
                 <header className="flex h-16 items-center justify-between gap-4 border-b bg-white px-4 sticky top-0 z-30">
                      <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg flex items-center justify-center">
@@ -141,7 +134,6 @@ export default function Layout() {
                     </motion.button>
                 </header>
 
-                {/* Mobile Sidebar Overlay and Menu */}
                 <AnimatePresence>
                     {isMobileMenuOpen && (
                         <>
@@ -199,7 +191,6 @@ export default function Layout() {
                 </AnimatePresence>
             </div>
             
-            {/* Main Content Area */}
             <main className="flex flex-col max-h-screen overflow-hidden">
                 <motion.div
                     key={location.pathname}

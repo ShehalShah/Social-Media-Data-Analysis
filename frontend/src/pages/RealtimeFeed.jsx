@@ -11,7 +11,6 @@ import {
 
 const API_BASE_URL = 'http://127.0.0.1:8000';
 
-// Redesigned LiveMetric card for the light theme
 const LiveMetric = ({ title, value, unit, icon, iconBg, trend, isActive }) => (
   <motion.div
     initial={{ opacity: 0, scale: 0.9 }}
@@ -58,7 +57,6 @@ const LiveMetric = ({ title, value, unit, icon, iconBg, trend, isActive }) => (
   </motion.div>
 );
 
-// Redesigned ActivityFeedItem for the light theme
 const ActivityFeedItem = ({ item, index }) => (
   <motion.div
     initial={{ opacity: 0, x: -20 }}
@@ -88,7 +86,6 @@ const ActivityFeedItem = ({ item, index }) => (
   </motion.div>
 );
 
-// Generic AnimatedChart wrapper for consistency
 const AnimatedChart = ({ title, icon, children, onRefresh, className = "" }) => (
     <motion.div
       initial={{ opacity: 0, y: 30 }}

@@ -11,7 +11,6 @@ import {
 
 const API_BASE_URL = 'http://127.0.0.1:8000';
 
-// Redesigned StatCard for the light theme
 const StatCard = ({ title, value, change, icon, iconColor, isLoading }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
@@ -49,7 +48,6 @@ const StatCard = ({ title, value, change, icon, iconColor, isLoading }) => (
   </motion.div>
 );
 
-// QuickInsightCard with minor style refinements
 const QuickInsightCard = ({ title, data, isLoading }) => {
   const [platform, setPlatform] = useState("reddit");
   const isTrendingKeywords = title?.toLowerCase().includes("trending");
@@ -101,7 +99,6 @@ const QuickInsightCard = ({ title, data, isLoading }) => {
   );
 };
 
-// AnimatedChart wrapper component with minor style refinements
 const AnimatedChart = ({ title, children, className = "" }) => (
   <motion.div
     initial={{ opacity: 0, y: 30 }}
@@ -151,7 +148,6 @@ export default function Dashboard() {
     fetchDashboardData();
   }, []);
   
-  // Loading skeleton state
   if (isLoading) {
     return (
       <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-slate-50">

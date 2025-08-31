@@ -11,7 +11,6 @@ import {
 
 const API_BASE_URL = 'http://127.0.0.1:8000';
 
-// Redesigned SafetyCard for the light theme
 const SafetyCard = ({ title, level, percentage, icon, iconBg, status }) => (
   <motion.div
     initial={{ opacity: 0, scale: 0.9 }}
@@ -60,7 +59,6 @@ const SafetyCard = ({ title, level, percentage, icon, iconBg, status }) => (
   </motion.div>
 );
 
-// Redesigned ToxicityAlert for the light theme
 const ToxicityAlert = ({ alert, index }) => (
   <motion.div
     initial={{ opacity: 0, x: -20 }}
@@ -100,7 +98,6 @@ const ToxicityAlert = ({ alert, index }) => (
   </motion.div>
 );
 
-// Generic AnimatedChart wrapper for consistency
 const AnimatedChart = ({ title, children, icon, className = "" }) => (
     <motion.div
       initial={{ opacity: 0, y: 30 }}

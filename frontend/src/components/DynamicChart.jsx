@@ -24,31 +24,24 @@ import { Download } from 'lucide-react';
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF1919'];
 
 function normalizeData(raw) {
-  // raw may be: array of objects, or array with `value` arrays like [x,y], or simple dicts
   if (!raw) return [];
 
   if (!Array.isArray(raw)) return [];
 
-  // If first item has 'value' that's an array pair
   if (raw.length > 0 && Array.isArray(raw[0].value) && raw[0].value.length >= 2) {
     return raw.map((item) => ({ x: item.value[0], y: Number(item.value[1]) }));
   }
 
-  // If items are plain objects
   const keys = Object.keys(raw[0] || {});
-  // common pattern: {date: ..., num_comments: ...}
   if (keys.length >= 2) {
-    // choose x as first string key, y as first numeric key
     const sample = raw[0];
     let xKey = keys.find((k) => typeof sample[k] === 'string') || keys[0];
     let yKey = keys.find((k) => typeof sample[k] === 'number') || keys.find((k) => !isNaN(Number(sample[k])));
-    // fallback
     if (!yKey) yKey = keys[1];
 
     return raw.map((row) => ({ ...row, [xKey]: row[xKey], [yKey]: typeof row[yKey] === 'number' ? row[yKey] : Number(row[yKey]) }));
   }
 
-  // fallback: return as-is
   return raw;
 }
 

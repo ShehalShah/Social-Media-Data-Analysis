@@ -8,7 +8,6 @@ import { Smile, Frown, Meh, TrendingUp, AlertTriangle } from 'lucide-react';
 
 const API_BASE_URL = 'http://127.0.0.1:8000';
 
-// Redesigned SentimentCard for the light theme
 const SentimentCard = ({ sentiment, percentage, icon, color, trend, iconBg }) => (
   <motion.div
     initial={{ opacity: 0, scale: 0.9 }}
@@ -42,7 +41,6 @@ const SentimentCard = ({ sentiment, percentage, icon, color, trend, iconBg }) =>
   </motion.div>
 );
 
-// Generic AnimatedChart wrapper for consistency
 const AnimatedChart = ({ title, children, className = "" }) => (
   <motion.div
     initial={{ opacity: 0, y: 30 }}

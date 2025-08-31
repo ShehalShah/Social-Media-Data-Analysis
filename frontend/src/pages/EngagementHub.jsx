@@ -11,7 +11,6 @@ import {
 
 const API_BASE_URL = 'http://127.0.0.1:8000';
 
-// Redesigned LeaderboardCard for the light theme
 const LeaderboardCard = ({ item, rank, platform }) => {
   const platformUI = {
     reddit: { iconColor: 'bg-orange-100 text-orange-600' },
@@ -67,7 +66,6 @@ const LeaderboardCard = ({ item, rank, platform }) => {
   );
 };
 
-// Redesigned MetricCard for the light theme
 const MetricCard = ({ title, value, subtitle, icon, iconBg, trend }) => (
   <motion.div
     initial={{ opacity: 0, scale: 0.9 }}
@@ -100,7 +98,6 @@ const MetricCard = ({ title, value, subtitle, icon, iconBg, trend }) => (
   </motion.div>
 );
 
-// Generic AnimatedChart wrapper for consistency
 const AnimatedChart = ({ title, children, className = "" }) => (
     <motion.div
       initial={{ opacity: 0, y: 30 }}

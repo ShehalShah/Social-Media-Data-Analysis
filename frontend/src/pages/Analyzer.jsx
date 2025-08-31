@@ -1,4 +1,3 @@
-// File: src/pages/Analyzer.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { Send, CornerDownLeft, RefreshCw, Download } from 'lucide-react';
