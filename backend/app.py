@@ -39,19 +39,7 @@ pinecone_index = pc.Index(PINECONE_INDEX_NAME)
 # genai.configure(api_key=GEMINI_API_KEY)
 # llm = genai.GenerativeModel('gemini-1.5-flash')
 
-DB_SCHEMA = """
-Table: youtube_comments (contains comments from YouTube)
-Columns: source_id, comment_id, username, text, date_of_comment, post_id, likes, sentiment_positive, toxicity
-
-Table: reddit_comments (contains comments from Reddit)
-Columns: source_id, comment_id, username, text, date_of_comment, post_id, likes, dislikes, sentiment_positive, toxicity
-
-Table: youtube_posts (contains posts/videos from YouTube)
-Columns: source_id, post_id, title, timestamp, username, views, shares, comments, link, platform, sentiment_positive, toxicity
-
-Table: reddit_posts (contains posts from Reddit)
-Columns: source_id, post_id, title, timestamp, username, ups, num_comments, link, platform, sentiment_positive, toxicity
-"""
+agent = None
 
 class TopRedditPost(BaseModel):
     title: Optional[str] = "No Title"
