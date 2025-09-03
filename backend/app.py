@@ -108,15 +108,21 @@ app = FastAPI(
     version="1.0.0"
 )
 
+
+origins = [
+    "https://socialmediadata.netlify.app",
+    "http://127.0.0.1:5173",  
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=origins, 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-agent = None
+# agent = None
 
 # def get_db_connection():
 #     """Get database connection"""
