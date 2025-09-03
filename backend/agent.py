@@ -12,29 +12,45 @@ from langchain_community.utilities.sql_database import SQLDatabase
 from langchain.tools import BaseTool
 from langchain.schema import HumanMessage
 from sentence_transformers import SentenceTransformer
-from pinecone import Pinecone
-import sqlite3
+from sqlalchemy import create_engine
+import pandas as pd
 from pydantic import PrivateAttr
+from pinecone import Pinecone
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL not found in .env file.")
+SQL_ENGINE = create_engine(DATABASE_URL)
 
 class SQLQueryTool(BaseTool):
     name: str = "sql_query"
     description: str = "Execute SQL queries on the database. Use for specific data questions, counts, analytics, etc."
 
-    _db: SQLDatabase = PrivateAttr()
+    _db_engine: Any = PrivateAttr()
 
-    def __init__(self, db: SQLDatabase, **kwargs):
+    def __init__(self, db_engine, **kwargs):
         super().__init__(**kwargs)
-        self._db = db
+        self._db_engine = db_engine
 
     def _run(self, query: str) -> str:
         try:
             query = query.strip()
             if not query.upper().startswith(('SELECT', 'WITH')):
                 return f"Error: Only SELECT queries are allowed. Got: {query[:50]}..."
-            result = self._db.run(query)
-            if not result or result.strip() == "[]":
+            with self._db_engine.connect() as conn:
+                result = pd.read_sql(query, conn)
+            if result.empty:
                 return "No data found for this query."
-            return result
+            print(result.dtypes)
+            for col in result.columns:
+                if pd.api.types.is_datetime64_any_dtype(result[col]):
+                    result[col] = result[col].dt.strftime('%Y-%m-%d')
+
+            # Ensure all object columns with Timestamps are stringified
+            result = result.astype({col: "string" for col in result.select_dtypes(include=["object"]).columns})
+            print(result)
+
+            return result.to_json(orient="records", date_format="iso") 
         except Exception as e:
             return f"SQL Error: {str(e)}"
 
@@ -43,19 +59,54 @@ class SQLSchemaTool(BaseTool):
     name: str = "sql_schema"
     description: str = "Get database schema and table information. Use when you need to understand the database structure."
     
-    _db: SQLDatabase = PrivateAttr()
+    _db_engine: Any = PrivateAttr()
 
-    def __init__(self, db: SQLDatabase, **kwargs):
+    def __init__(self, db_engine, **kwargs):
         super().__init__(**kwargs)
-        self._db = db
+        self._db_engine = db_engine
 
     
-    def _run(self, table_name: str = "") -> str:
+    def _run(self, table_name: str = "", sample_rows: int = 2) -> str:
         try:
-            if table_name:
-                return self._db.get_table_info([table_name])
-            else:
-                return self._db.get_table_info()
+            with self._db_engine.connect() as conn:
+                if table_name:
+                    # Get schema info
+                    df_schema = pd.read_sql(f"""
+                        SELECT table_name, column_name, data_type
+                        FROM information_schema.columns
+                        WHERE table_name = '{table_name}'
+                    """, conn)
+                    
+                    # Get sample data
+                    df_sample = pd.read_sql(f"""
+                        SELECT * FROM {table_name} LIMIT {sample_rows}
+                    """, conn)
+                    
+                    schema_info = {
+                        "columns": df_schema.to_dict(orient="records"),
+                        "sample_rows": df_sample.to_dict(orient="records")
+                    }
+                else:
+                    tables = pd.read_sql("""
+                        SELECT table_name
+                        FROM information_schema.tables
+                        WHERE table_schema='public'
+                    """, conn)
+                    
+                    schema_info = {}
+                    for t in tables['table_name']:
+                        df_schema = pd.read_sql(f"""
+                            SELECT table_name, column_name, data_type
+                            FROM information_schema.columns
+                            WHERE table_name = '{t}'
+                        """, conn)
+                        df_sample = pd.read_sql(f"SELECT * FROM {t} LIMIT {sample_rows}", conn)
+                        schema_info[t] = {
+                            "columns": df_schema.to_dict(orient="records"),
+                            "sample_rows": df_sample.to_dict(orient="records")
+                        }
+
+            return json.dumps(schema_info, indent=2)
         except Exception as e:
             return f"Schema Error: {str(e)}"
 
@@ -126,10 +177,11 @@ class DataAnalysisAgent:
     """Main agent class that orchestrates all operations"""
     
     def __init__(self):
-        self.db = SQLDatabase.from_uri(
-            f"sqlite:///{os.getenv('SQL_DB_NAME', 'insights.db')}", 
-            sample_rows_in_table_info=3
-        )
+        self.db_engine = SQL_ENGINE
+        # self.db = SQLDatabase.from_uri(
+        #     f"sqlite:///{os.getenv('SQL_DB_NAME', 'insights.db')}", 
+        #     sample_rows_in_table_info=3
+        # )
         
         self.pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
         self.pinecone_index = self.pc.Index(os.getenv("PINECONE_INDEX_NAME", 'insights-index'))
@@ -146,9 +198,9 @@ class DataAnalysisAgent:
         #     google_api_key=os.getenv("GEMINI_API_KEY")
         # )
         
-        self.sql_query_tool = SQLQueryTool(self.db)
-        self.sql_schema_tool = SQLSchemaTool(self.db)
-        self.semantic_search_tool = SemanticSearchTool(self.pinecone_index, self.embedding_model)
+        self.sql_query_tool = SQLQueryTool(self.db_engine)
+        self.sql_schema_tool = SQLSchemaTool(self.db_engine)
+        self.semantic_search_tool = SemanticSearchTool(self.pinecone_index, self.embedding_model, db_engine=self.db_engine)
     
     # def _classify_query(self, query: str) -> str:
     #     """Classify the type of query to determine the best approach"""
@@ -254,6 +306,7 @@ class DataAnalysisAgent:
         """Generate SQL query (and chart type if requested) using LLM"""
         schema = self._get_sql_schema()
         
+        # FIX: Using your preferred prompt structure, tailored for PostgreSQL with strict date formatting rules.
         prompt = f"""
         Based on this database schema:
         {schema}
@@ -261,47 +314,47 @@ class DataAnalysisAgent:
         Generate output for this user question: "{user_query}"
         
         Rules:
-        1. Always generate a SINGLE, VALID SQL SELECT query. The database is **SQLite**, not PostgreSQL or MySQL. Always generate SQLite-compatible SQL.
-        2. If the user explicitly asks for a chart/graph/visualization/plot, also specify the chart type.
-        3. When generating chart queries, always include BOTH:
-        - The metric to be plotted (e.g., likes, count, score).
-        - A human-readable identifier (e.g., comment_text, username, title, url) for labeling the x-axis or legend.
-        4. Allowed chart types: bar, line, pie, histogram, scatter, area. If no chart requested, use null.
-        5. Output STRICTLY as JSON with exactly these two keys:
-        {{
-            "sql": "<SQL query>",
-            "chart_type": "<one of: bar, line, pie, histogram, scatter, area, null>"
-        }}
-        6. Do not include explanations, markdown, or text outside JSON.
-        7. Use valid SQLite-compatible SQL only (e.g., DATE(), strftime()).
+        1. Always generate a SINGLE, VALID SQL SELECT query. The database is **PostgreSQL**, not SQLite. Always generate PostgreSQL-compatible SQL.
+        2. If the user asks for a chart, graph, visualization, or plot, also specify the chart type.
+        3. When generating chart queries, you MUST include a human-readable identifier for the x-axis (like a date or a category name) and a numeric metric for the y-axis (like a count or a score).
+        4. Allowed chart types are: bar, line, pie. If no chart is needed, the value should be null.
+        5. Your output MUST be a single, valid JSON object with exactly two keys: "sql" and "chart_type".
+        6. Do not include any explanations, markdown, or text outside of the JSON object.
+        7. **CRITICAL RULE FOR CHARTS:** For any time-series query (e.g., 'daily', 'over time', 'trend'), you MUST use `DATE_TRUNC('day', your_column::timestamp)::DATE AS date` to group the data. This ensures the x-axis is a properly formatted date.
+
+        Example of a good time-series query:
+        "sql": "SELECT DATE_TRUNC('day', date_of_comment::timestamp)::DATE AS date, COUNT(*) AS comment_count FROM reddit_comments GROUP BY date ORDER BY date;"
         """
 
         response = self.llm.invoke([HumanMessage(content=prompt)])
         raw = response.content.strip()
 
+        # This parsing logic is good and handles potential LLM errors. No changes needed here.
         sql_query, chart_type = "", None
         try:
-            parsed = json.loads(raw)
-            sql_query = parsed.get("sql", "").strip()
-            chart_type = parsed.get("chart_type", None)
-        except Exception:
+            # First, try to find a JSON block in the response
             match = re.search(r"\{[\s\S]*\}", raw)
             if match:
-                try:
-                    parsed = json.loads(match.group(0))
-                    sql_query = parsed.get("sql", "").strip()
-                    chart_type = parsed.get("chart_type", None)
-                except Exception:
-                    sql_query, chart_type = raw, None
-            else:
-                sql_query, chart_type = raw, None
+                parsed = json.loads(match.group(0))
+                sql_query = parsed.get("sql", "").strip()
+                chart_type = parsed.get("chart_type", None)
+            else: # If no JSON object is found, try to parse the whole string
+                parsed = json.loads(raw)
+                sql_query = parsed.get("sql", "").strip()
+                chart_type = parsed.get("chart_type", None)
 
-        sql_query = re.sub(r'```sql\n?', '', sql_query)
-        sql_query = re.sub(r'```\n?', '', sql_query)
+        except Exception as e:
+            print(f"Could not parse JSON from LLM response, treating as raw SQL. Error: {e}")
+            # If all parsing fails, assume the entire response is the SQL query
+            sql_query = raw
+            chart_type = "bar" if any(k in user_query.lower() for k in ['chart', 'graph', 'plot']) else None
+        
+        # Final cleaning of the SQL query
+        sql_query = re.sub(r'^```sql\s*|\s*```$', '', sql_query)
         sql_query = sql_query.strip()
         
-        return sql_query, chart_type
-   
+        return sql_query, chart_type   
+
     async def process_query(self, user_query: str) -> Dict[str, Any]:
         """Main method to process user queries"""
         try:
@@ -340,6 +393,7 @@ class DataAnalysisAgent:
             
             if chart_type:
                 data = self._extract_sql_data(sql_result)
+                print(data)
                 if not data:
                     return {
                         "type": "text",
