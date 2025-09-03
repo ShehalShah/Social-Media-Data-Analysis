@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 # Load environment variables at the very beginning of the script.
 load_dotenv()
 
-from langchain_google_genai import ChatGoogleGenerativeAI
+# from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
 from langchain.agents import AgentExecutor, create_react_agent, Tool, initialize_agent
 from langchain_community.agent_toolkits import SQLDatabaseToolkit
