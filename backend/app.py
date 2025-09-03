@@ -34,11 +34,6 @@ SQL_ENGINE = create_engine(DATABASE_URL)
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 PINECONE_INDEX_NAME = 'insights-index'
 # GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-print("Loading Sentence Transformer model for API...")
-embedding_model = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
-print("Model loaded.")
-
 pc = Pinecone(api_key=PINECONE_API_KEY)
 pinecone_index = pc.Index(PINECONE_INDEX_NAME)
 # genai.configure(api_key=GEMINI_API_KEY)
@@ -192,22 +187,6 @@ def get_overall_summary():
 #         return {"results": results}
 #     except Exception as e:
 #         print(f"Error during chat query: {e}"); return {"results": []}
-
-def semantic_search(query: str) -> Dict:
-    """Performs vector search in Pinecone."""
-    try:
-        query_embedding = embedding_model.encode(query).tolist()
-        query_results = pinecone_index.query(vector=query_embedding, top_k=3, include_metadata=True)
-        
-        response_text = "I couldn't generate a specific analysis for that, but here are the most relevant comments and posts I found:\n\n" + \
-                        "\n\n".join([f"• \"{match['metadata']['text']}\"\n  (from {match['metadata']['source']})" for match in query_results['matches']])
-        
-        return {"type": "text", "content": response_text}
-    except Exception as e:
-        print(f"Pinecone search failed: {e}")
-        return {"type": "error", "content": "An error occurred during the search."}
-
-
 
 @app.post("/api/chat")
 async def handle_chat_query(query: ChatQuery) -> Union[TextResponse, ChartResponse]:
