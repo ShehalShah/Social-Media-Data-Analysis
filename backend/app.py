@@ -127,16 +127,16 @@ def get_db_connection():
     """Get database connection to Postgres"""
     return SQL_ENGINE.connect()
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize the agent on startup"""
-    global agent
-    try:
-        agent = create_agent()
-        print("✅ Agent initialized successfully")
-    except Exception as e:
-        print(f"❌ Failed to initialize agent: {e}")
-        raise e
+# @app.on_event("startup")
+# async def startup_event():
+#     """Initialize the agent on startup"""
+#     global agent
+#     try:
+#         agent = create_agent()
+#         print("✅ Agent initialized successfully")
+#     except Exception as e:
+#         print(f"❌ Failed to initialize agent: {e}")
+#         raise e
 
 @app.get("/")
 def home():
