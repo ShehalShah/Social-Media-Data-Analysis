@@ -195,6 +195,14 @@ async def handle_chat_query(query: ChatQuery) -> Union[TextResponse, ChartRespon
     Routes queries to appropriate tools based on content analysis.
     """
     global agent
+    if agent is None:
+        print("Agent not initialized. Initializing now... (This may take a moment)")
+        try:
+            agent = create_agent()
+            print("✅ Agent initialized successfully")
+        except Exception as e:
+            print(f"❌ Failed to initialize agent during request: {e}")
+            raise HTTPException(status_code=500, detail="Could not initialize the AI agent.")
     
     if not agent:
         raise HTTPException(status_code=500, detail="Agent not initialized")
