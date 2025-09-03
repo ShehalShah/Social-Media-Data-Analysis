@@ -9,7 +9,7 @@ import {
   ArrowUpRight, ArrowDownRight, Activity, Zap
 } from 'lucide-react';
 
-const API_BASE_URL = 'http://127.0.0.1:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const StatCard = ({ title, value, change, icon, iconColor, isLoading }) => (
   <motion.div
@@ -138,6 +138,8 @@ export default function Dashboard() {
         const [analyticsData, trendsData, sentimentData, trendingData] = await Promise.all([
           analyticsRes.json(), trendsRes.json(), sentimentRes.json(), trendingRes.json()
         ]);
+        console.log([analyticsData, trendsData, sentimentData, trendingData] );
+        
         setAnalytics(analyticsData); setTrends(trendsData); setSentiment(sentimentData); setTrending(trendingData);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
